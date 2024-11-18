@@ -1,0 +1,281 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+// Main class to launch the program
+public class InventoryManagementSystem {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new LoginScreen().createAndShowGUI());
+    }
+}
+
+// User Authentication Class
+class UserAuthentication {
+    private static final HashMap<String, String> users = new HashMap<>();
+
+    static {
+        users.put("admin", "admin123");
+        users.put("employee", "emp123");
+    }
+
+    public static boolean authenticate(String username, String password) {
+        return users.containsKey(username) && users.get(username).equals(password);
+    }
+}
+
+// Product Class
+class Product {
+    private final int id;
+    private String name;
+    private int stock;
+    private double price;
+
+    public Product(int id, String name, int stock, double price) {
+        this.id = id;
+        this.name = name;
+        this.stock = stock;
+        this.price = price;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getStock() {
+        return stock;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    @Override
+    public String toString() {
+        return id + " - " + name + " (Stock: " + stock + ", Price: $" + price + ")";
+    }
+}
+
+// Inventory Manager Class
+class InventoryManager {
+    private final List<Product> products = new ArrayList<>();
+    private int productIdCounter = 1;
+
+    public void addProduct(String name, int stock, double price) {
+        products.add(new Product(productIdCounter++, name, stock, price));
+    }
+
+    public void editProduct(int id, String name, int stock, double price) {
+        for (Product p : products) {
+            if (p.getId() == id) {
+                p.setName(name);
+                p.setStock(stock);
+                p.setPrice(price);
+                return;
+            }
+        }
+    }
+
+    public void deleteProduct(int id) {
+        products.removeIf(p -> p.getId() == id);
+    }
+
+    public List<Product> getLowStockProducts(int threshold) {
+        List<Product> lowStock = new ArrayList<>();
+        for (Product p : products) {
+            if (p.getStock() < threshold) {
+                lowStock.add(p);
+            }
+        }
+        return lowStock;
+    }
+
+    public List<Product> getProducts() {
+        return products;
+    }
+}
+
+// Login Screen Class
+class LoginScreen {
+    public void createAndShowGUI() {
+        JFrame frame = new JFrame("Login");
+        frame.setSize(300, 150);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel panel = new JPanel();
+        frame.add(panel);
+        placeComponents(panel, frame);
+
+        frame.setVisible(true);
+    }
+
+    private void placeComponents(JPanel panel, JFrame frame) {
+        panel.setLayout(null);
+
+        JLabel userLabel = new JLabel("User:");
+        userLabel.setBounds(10, 20, 80, 25);
+        panel.add(userLabel);
+
+        JTextField userText = new JTextField(20);
+        userText.setBounds(100, 20, 165, 25);
+        panel.add(userText);
+
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordLabel.setBounds(10, 50, 80, 25);
+        panel.add(passwordLabel);
+
+        JPasswordField passwordText = new JPasswordField(20);
+        passwordText.setBounds(100, 50, 165, 25);
+        panel.add(passwordText);
+
+        JButton loginButton = new JButton("Login");
+        loginButton.setBounds(10, 80, 80, 25);
+        panel.add(loginButton);
+
+        loginButton.addActionListener(e -> {
+            String username = userText.getText();
+            String password = new String(passwordText.getPassword());
+            if (UserAuthentication.authenticate(username, password)) {
+                JOptionPane.showMessageDialog(panel, "Login Successful!");
+                frame.dispose();
+                new InventoryScreen().createAndShowGUI();
+            } else {
+                JOptionPane.showMessageDialog(panel, "Invalid credentials");
+            }
+        });
+    }
+}
+
+// Inventory Screen Class
+class InventoryScreen {
+    private final InventoryManager manager = new InventoryManager();
+
+    public void createAndShowGUI() {
+        JFrame frame = new JFrame("Inventory Management");
+        frame.setSize(500, 400);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        frame.add(panel);
+
+        // Product List
+        DefaultListModel<String> productListModel = new DefaultListModel<>();
+        JList<String> productList = new JList<>(productListModel);
+        JScrollPane scrollPane = new JScrollPane(productList);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Buttons Panel
+        JPanel buttonsPanel = new JPanel();
+        panel.add(buttonsPanel, BorderLayout.SOUTH);
+
+        JButton addButton = new JButton("Add");
+        JButton editButton = new JButton("Edit");
+        JButton deleteButton = new JButton("Delete");
+        JButton lowStockButton = new JButton("Low Stock");
+
+        buttonsPanel.add(addButton);
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(deleteButton);
+        buttonsPanel.add(lowStockButton);
+
+        // Add Button Action
+        addButton.addActionListener(e -> {
+            JTextField nameField = new JTextField();
+            JTextField stockField = new JTextField();
+            JTextField priceField = new JTextField();
+            Object[] fields = {
+                    "Name:", nameField,
+                    "Stock:", stockField,
+                    "Price:", priceField
+            };
+
+            int result = JOptionPane.showConfirmDialog(frame, fields, "Add Product", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String name = nameField.getText();
+                int stock = Integer.parseInt(stockField.getText());
+                double price = Double.parseDouble(priceField.getText());
+                manager.addProduct(name, stock, price);
+                updateProductList(productListModel);
+            }
+        });
+
+        // Edit Button Action
+        editButton.addActionListener(e -> {
+            String selected = productList.getSelectedValue();
+            if (selected != null) {
+                int id = Integer.parseInt(selected.split(" - ")[0]);
+
+                JTextField nameField = new JTextField();
+                JTextField stockField = new JTextField();
+                JTextField priceField = new JTextField();
+                Object[] fields = {
+                        "Name:", nameField,
+                        "Stock:", stockField,
+                        "Price:", priceField
+                };
+
+                int result = JOptionPane.showConfirmDialog(frame, fields, "Edit Product", JOptionPane.OK_CANCEL_OPTION);
+                if (result == JOptionPane.OK_OPTION) {
+                    String name = nameField.getText();
+                    int stock = Integer.parseInt(stockField.getText());
+                    double price = Double.parseDouble(priceField.getText());
+                    manager.editProduct(id, name, stock, price);
+                    updateProductList(productListModel);
+                }
+            }
+        });
+
+        // Delete Button Action
+        deleteButton.addActionListener(e -> {
+            String selected = productList.getSelectedValue();
+            if (selected != null) {
+                int id = Integer.parseInt(selected.split(" - ")[0]);
+                manager.deleteProduct(id);
+                updateProductList(productListModel);
+            }
+        });
+
+        // Low Stock Button Action
+        lowStockButton.addActionListener(e -> {
+            String thresholdInput = JOptionPane.showInputDialog(frame, "Enter low stock threshold:");
+            if (thresholdInput != null) {
+                int threshold = Integer.parseInt(thresholdInput);
+                List<Product> lowStockProducts = manager.getLowStockProducts(threshold);
+                StringBuilder message = new StringBuilder("Low Stock Products:\n");
+                for (Product p : lowStockProducts) {
+                    message.append(p).append("\n");
+                }
+                JOptionPane.showMessageDialog(frame, message.toString());
+            }
+        });
+
+        frame.setVisible(true);
+    }
+
+    private void updateProductList(DefaultListModel<String> model) {
+        model.clear();
+        for (Product p : manager.getProducts()) {
+            model.addElement(p.toString());
+        }
+    }
+}
+
